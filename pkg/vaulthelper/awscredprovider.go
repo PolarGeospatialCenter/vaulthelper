@@ -10,10 +10,19 @@ import (
 )
 
 type VaultAwsStsCredentials struct {
-	VaultClient *vault.Client
-	VaultRole   string
-	creds       *credentials.Value
-	expiresAt   time.Time
+	VaultClient  *vault.Client
+	VaultBackend string
+	VaultRole    string
+	creds        *credentials.Value
+	expiresAt    time.Time
+}
+
+func (v VaultAwsStsCredentials) stsEndpoint() string {
+	backend := v.VaultBackend
+	if backend == "" {
+		backend = "aws"
+	}
+	return fmt.Sprintf("%s/sts/%s", backend, v.VaultRole)
 }
 
 func (v *VaultAwsStsCredentials) Retrieve() (credentials.Value, error) {
@@ -22,7 +31,7 @@ func (v *VaultAwsStsCredentials) Retrieve() (credentials.Value, error) {
 	}
 	creds := credentials.Value{}
 
-	secret, err := v.VaultClient.Logical().Write(fmt.Sprintf("aws/sts/%s", v.VaultRole), map[string]interface{}{})
+	secret, err := v.VaultClient.Logical().Write(v.stsEndpoint(), map[string]interface{}{})
 	if err != nil {
 		return creds, fmt.Errorf("unable to get sts token using vault role: %v", err)
 	}
